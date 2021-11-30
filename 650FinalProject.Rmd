@@ -19,7 +19,7 @@ library("dplyr")
 
 
 ```{r}
-varinterst = c("Age","Gender","Race1","PhysActive","Depressed","Diabetes","BPSysAve", "BPDiaAve", "TotChol", "Testosterone", "RegularMarij")
+varinterst = c("Age","Gender","Race1","PhysActive","Depressed","Diabetes","BPSysAve", "BPDiaAve", "TotChol", "Testosterone", "RegularMarij", "BMI")
 
 nh1 = nh[,varinterst]
 nh1 <- nh1[ which(nh1$Age >=18 & nh1$Age <=59), ]
@@ -98,46 +98,66 @@ nhM %>%
 
 
 ```{r}
+## Complete case model nh2
 nh2 <- nh1 %>% drop_na() #drop anything with NA
-m1 =  lm(log(Testosterone)~Age + Sex + Race1 + PhysAc + Depress + Diabete + HypT+ TotChol + RegularMarij2, nh2)
+## Full model with age as continuous variable
+m1 =  lm(log(Testosterone)~
+             Age + Sex + Race1 + PhysAc + Depress + 
+             Diabete + HypT+ TotChol + RegularMarij2, 
+         data = nh2)
 summary(m1)
 ```
 
 
 ```{r}
-quantile(nh2$Age, probs = seq(0, 1, 0.25))
+## quantile(nh2$Age, probs = seq(0, 1, 0.25))
+## Change Age into categorical variable
 AgeQ1 <- nh2$Age<28
 AgeQ2 <- nh2$Age>=28 & nh2$Age<39
 AgeQ3 <- nh2$Age>=39 & nh2$Age<49
 AgeQ4 <- nh2$Age>=49 & nh2$Age<59
 
-m_ageC <- lm(log(Testosterone)~AgeQ2+AgeQ3+AgeQ4 + Sex + Race1 + PhysAc + Depress + Diabete + HypT+ TotChol + RegularMarij2, nh2)
+m_ageC <- lm(log(Testosterone)~
+                 AgeQ2 + AgeQ3 + AgeQ4 + 
+                 Sex + Race1 + PhysAc + Depress + 
+                 Diabete + HypT+ TotChol + RegularMarij2, 
+             data = nh2)
 summary(m_ageC)
 ```
 
 ```{r}
+## Check age linearity
 plot(1:3, m_ageC$coefficients[2:4])
 ```
 
 ```{r}
-m_ageC <- lm(log(Testosterone)~AgeQ2+AgeQ3+AgeQ4 + Sex + Race1 + PhysAc + Depress + Diabete + HypT+ TotChol + RegularMarij2 +RegularMarij2*(AgeQ2+AgeQ3+AgeQ4 + Sex + Race1 + PhysAc + Depress + Diabete + HypT+ TotChol), nh2)
+## full model with interaction
+m_ageC_it <- lm(log(Testosterone) ~ 
+                    AgeQ2 + AgeQ3 + AgeQ4 + 
+                    Sex + Race1 + PhysAc + Depress + Diabete + 
+                    HypT+ TotChol + RegularMarij2 +
+                    RegularMarij2*(AgeQ2 + AgeQ3 + AgeQ4 + Sex + 
+                                   Race1 + PhysAc + Depress + 
+                                       Diabete + HypT+ TotChol), 
+                data = nh2)
+summary(m_ageC_it)
 ```
 
 ```{r}
+## Check co-linearity
 cor(nh2[c("Diabete", "TotChol", "HypT", "PhysAc","Depress")])
-
-car::vif(m_ageC)
 ```
 ## linearity check
 ```{r}
-car::avPlots(m_ageC)
+car::avPlots(m_ageC_it)
 ```
 ```{r}
 ## For independence, we check literature. 
 ```
 
 ```{r}
-m_ageC_wo_it <- lm(log(Testosterone)~AgeQ2+AgeQ3+AgeQ4 + Sex + Race1 + PhysAc + Depress + Diabete + HypT+ TotChol + RegularMarij2, nh2)
+## model without iteraction
+m_ageC_wo_it <- lm(log(Testosterone)~AgeQ2 + AgeQ3 + AgeQ4 + Sex + Race1 + PhysAc + Depress + Diabete + HypT+ TotChol + RegularMarij2, nh2)
 plot(m_ageC_wo_it$fitted.values, m_ageC_wo_it$residuals)
 plot(m_ageC$fitted.values, m_ageC$residuals)
 summary(log(nh2$Testosterone))
@@ -147,48 +167,47 @@ hist(log(nh2$Testosterone))
 
 
 ```{r}
-
-nh2F <- nhF %>% drop_na() #drop anything with NA
-quantile(nh2F$Age, probs = seq(0, 1, 0.25))
-AgeQ1F <- nh2F$Age<27
-AgeQ2F <- nh2F$Age>=27 & nh2F$Age<39
-AgeQ3F <- nh2F$Age>=39 & nh2F$Age<49
-AgeQ4F <- nh2F$Age>=49 & nh2F$Age<59
-mf =  lm(log(Testosterone)~AgeQ2F+AgeQ3F+AgeQ4F + Race1 + PhysAc + Depress + Diabete + HypT+ TotChol + RegularMarij2, nh2F)
+StraSex <- function(nh) {
+    nh2F <- nh %>% drop_na() #drop anything with NA
+    q <- quantile(nh2F$Age, probs = seq(0, 1, 0.25))
+    AgeQ1F <- nh2F$Age<q[2]
+    AgeQ2F <- nh2F$Age>=q[2] & nh2F$Age<q[3]
+    AgeQ3F <- nh2F$Age>=q[3] & nh2F$Age<q[4]
+    AgeQ4F <- nh2F$Age>=q[4] & nh2F$Age<q[5]
+    mf =  lm(log(Testosterone)~AgeQ2F+AgeQ3F+AgeQ4F + Race1 + PhysAc + Depress + Diabete + HypT+ TotChol + RegularMarij2, nh2F)
+    return(mf)
+}
+## female
+mf <- StraSex(nhF)
 summary(mf)
-
-nh2M <- nhM %>% drop_na() #drop anything with NA
-quantile(nh2M$Age, probs = seq(0, 1, 0.25))
-AgeQ1 <- nh2M$Age<28
-AgeQ2 <- nh2M$Age>=28 & nh2M$Age<39
-AgeQ3 <- nh2M$Age>=39 & nh2M$Age<50
-AgeQ4 <- nh2M$Age>=50 & nh2M$Age<59
-mm =  lm(log(Testosterone)~AgeQ2+AgeQ3+AgeQ4 + Race1 + PhysAc + Depress + Diabete + HypT+ TotChol + RegularMarij2, nh2M )
+## male
+mm <- StraSex(nhM)
 summary(mm)
-
-
-
-
 ```
 ```{r}
+## linearity for female
 car::avPlots(mf)
 
 ```
 ```{r}
+## linearity for male
 car::avPlots(mm)
 ```
 
 ```{r}
+## equal variance
 plot(mf$fitted.values, mf$residuals)
 plot(mm$fitted.values, mm$residuals)
 ```
 
 ```{r}
+## normality
 hist(m_ageC$residuals)
 hist(mf$residuals)
 hist(mm$residuals)
 ```
 ```{r}
+## normality
 car::qqPlot(m_ageC$residuals)
 car::qqPlot(mf$residuals)
 car::qqPlot(mm$residuals)
@@ -203,17 +222,18 @@ nh2M$RN <- as.numeric(nh2M$Race1)
 cor(nh2M[c("Age","PhysAc" ,"RN", "Depress" , "Diabete" , "HypT" , "TotChol" , "RegularMarij2")])
 ```
 
+
 ```{r}
 mf_w_it =  lm(log(Testosterone)~AgeQ2F+AgeQ3F+AgeQ4F + Race1 + PhysAc + Depress + Diabete + HypT+ TotChol + RegularMarij2 + RegularMarij2*(AgeQ2F+AgeQ3F+AgeQ4F + Race1 + PhysAc + Depress + Diabete + HypT+ TotChol), nh2F)
 summary(mf_w_it)
 ```
 
-
-
 ```{r}
 mm_w_it =  lm(log(Testosterone)~AgeQ2+AgeQ3+AgeQ4 + Race1 + PhysAc + Depress + Diabete + HypT+ TotChol + RegularMarij2 + RegularMarij2*(AgeQ2+AgeQ3+AgeQ4 + Race1 + PhysAc + Depress + Diabete + HypT+ TotChol), nh2M)
 summary(mm_w_it)
 ```
+
+
 
 
 
