@@ -39,8 +39,8 @@ nh1 <- nh1 %>%
 nh1$TotChol = log(nh1$TotChol)
 nh1$Incomplete = complete.cases(nh1)
 nh1$Race1 = as.factor(nh1$Race1)
-nh1$Weight = nh1$Weight-mean(nh1$Weight, na.rm = TRUE)
-nh1$Height = nh1$Height-mean(nh1$Height, na.rm = TRUE)
+nh1$Weight = (nh1$Weight-mean(nh1$Weight, na.rm = TRUE))/sd(nh1$Weight, na.rm = TRUE)
+nh1$Height = (nh1$Height-mean(nh1$Height, na.rm = TRUE))/sd(nh1$Height, na.rm = TRUE)
 
 drops = c("Sex")
 nhF= nh1[ which(nh1$Sex == 1), ]
@@ -212,7 +212,6 @@ This is our final model, but we need to further select significant terms.
 ## model without iteraction
 
 m_age_woit <- lm(log(Testosterone) ~ 
-                   
                     Age + 
                     Sex + Race1 + PhysAc + Depress + Diabete + 
                     BPSysAve+ TotChol + RegularMarij2 +  Weight + Height, 
