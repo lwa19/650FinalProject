@@ -18,6 +18,8 @@ library("dplyr")
 library("olsrr")
 ```
 
+
+
 ## Data Cleaning and Variates Selection
 ```{r}
 varinterst = c("Age","Gender","Race1","PhysActive","Depressed","Diabetes","BPSysAve", "BPDiaAve", "TotChol", "Testosterone", "RegularMarij", "Weight", "Height")
@@ -37,7 +39,7 @@ nh1 <- nh1 %>%
   mutate(Depress = ifelse(nh1$Depressed == "None", 0, 1))
 nh1 <- nh1 %>%
   mutate(RegularMarij2 = ifelse(nh1$RegularMarij == "No", 0, 1))
-nh1$TotChol = log(nh1$TotChol)
+nh1$TotChol = nh1$TotChol-mean(nh1$TotChol, na.rm = TRUE)
 nh1$Incomplete = complete.cases(nh1)
 nh1$Race1 = as.factor(nh1$Race1)
 
@@ -127,7 +129,53 @@ nhM %>%
 
 
 
+```{r}
+SummaryTestTable <- function(x){ 
+nh3 = nh2[,c(all_of(x),"Testosterone")]
+  nh3 %>%
+   tbl_summary(by = all_of(x),
+                missing = "no",
+              statistic = list(all_continuous() ~ "{mean} ({sd})",
+                               all_categorical() ~ "{n} ({p}%)"),
+              ) %>%
+  add_n %>%
+  add_p(test = list(Testosterone ~ "t.test"),
+        test.args = all_tests("t.test") ~ list(var.equal = TRUE),## Important argument! 
+        pvalue_fun = function(x) style_pvalue(x, digits = 2)) %>%
+  bold_p(t = 0.05) %>%
+  bold_labels}
+
+for (i in c("Gender","PhysAc","Depress","Diabetes",  "HypT", "RegularMarij")) {
+  print(SummaryTestTable(i))
+}
+
+
+
+```
+```{r}
+m1t =  lm(log(Testosterone)~
+              RegularMarij2, 
+         data = nh2)
+
+m2t <- lm(log(Testosterone)~
+              RegularMarij2 + Race1, 
+         data = nh2)
+anova(m1t,m2t)
+```
+
+
+
+
+
+
 Our first limitation is that complete/incomplete data are significantly different. Even if we adjusted for gender, there is still significant difference between the two data set. Using the complete model can be biased
+
+```{r}
+m_unrefined <- lm(Testosterone~RegularMarij2, data=nh2)
+summary(m_unrefined)
+checka(m_unrefined)
+```
+
 
 ```{r}
 table1(~Testosterone | RegularMarij, data=nh2)
@@ -150,6 +198,20 @@ panel.hist <- function(x, ...)
 pairs(scatmatrixData, pch = 19, diag.panel=panel.hist)
 ```
 
+```{r}
+m1 =  lm(log(Testosterone)~
+             Agec + Sex + Race1 + PhysAc + Depress + Weight + 
+             Diabete + HypT + TotChol + RegularMarij2 + Height, 
+         data = nh2)
+summary(m1)
+```
+
+```{r}
+pairs(scatmatrixData, pch = 19, diag.panel=panel.hist)
+cormat = cor(scatmatrixData)
+pres <- cor.mtest(scatmatrixData, conf.level = .95)
+corrplot.mixed(cormat, lower.col = "black", number.cex = 1,p.mat = pres$p, sig.level = .05)
+```
 
 ```{r}
 m_ageC <- lm(log(Testosterone)~
@@ -168,7 +230,8 @@ checka <- function (model) {
   shapiro.test(model$residuals)
 }
 checka(m_ageC)
-```
+## confirm outliers
+``` 
 
 ```{r}
 ## Check age linearity
@@ -186,7 +249,6 @@ m_age_it_2 <- lm(log(Testosterone) ~
                 data = nh2)
 summary(m_age_it_2)
 ```
-
 
 ```{r}
 ## Complete case model nh2
@@ -296,11 +358,7 @@ summary(m_age_it)
 ```{r}
 checka(m_age_it)
 ```
-```{r}
-## For independence, we check literature. 
-```
 
-## Improve model by identifing outliers
 
 
 
