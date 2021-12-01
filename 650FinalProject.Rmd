@@ -178,6 +178,21 @@ summary(m_age_it)
 ```
 
 ```{r}
+## full model with interaction : Final model
+m_age_it <- lm(log(Testosterone) ~ 
+                    Age + 
+                    Sex + Race1 + PhysAc + Diabete + 
+                    BPSysAve + RegularMarij2 +  Weight + Height +
+                    RegularMarij2*(Age +  Weight + Height +
+                                   Race1 + PhysAc + 
+                                   Diabete + BPSysAve), 
+                data = nh2)
+summary(m_age_it)
+```
+
+
+
+```{r}
 ## Check co-linearity
 cor(nh2[c("Diabete", "TotChol", "HypT", "PhysAc","Depress", "Weight", "Height")])
 ```
@@ -197,6 +212,7 @@ This is our final model, but we need to further select significant terms.
 ## model without iteraction
 
 m_age_woit <- lm(log(Testosterone) ~ 
+                   
                     Age + 
                     Sex + Race1 + PhysAc + Depress + Diabete + 
                     BPSysAve+ TotChol + RegularMarij2 +  Weight + Height, 
