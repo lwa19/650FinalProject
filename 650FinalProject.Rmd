@@ -4,7 +4,7 @@ author: "LAUREN", "Ziming"
 date: "11/23/2021"
 output: pdf_document
 ---
-
+## Loading Packages
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 nh = data.frame(NHANES::NHANES)
@@ -18,36 +18,26 @@ library("dplyr")
 library("olsrr")
 ```
 
-
-
 ## Data Cleaning and Variates Selection
 ```{r}
 varinterst = c("Age","Gender","Race1","PhysActive","Depressed","Diabetes","BPSysAve", "BPDiaAve", "TotChol", "Testosterone", "RegularMarij", "Weight", "Height")
-
 nh1 = nh[,varinterst]
-nh1 <- nh1[ which(nh1$Age >=18 & nh1$Age <=59), ]
-
+nh1 <- nh1[ which(nh1$Age >=18 & nh1$Age <=59), ] #Due to Marijuana variable. 
 nh1 <- nh1 %>%
   mutate(HypT = if_else(nh1$BPSysAve >= 130 | nh1$BPDiaAve >=80, 1, 0)) #Add hypertension variable
 nh1 <- nh1 %>%
-  mutate(Sex = ifelse(nh1$Gender == "female", 1, 0)) 
+  mutate(Sex = ifelse(nh1$Gender == "female", 1, 0)) #Recode Sex into binary where female=1, male=0
 nh1 <- nh1 %>%
-  mutate(PhysAc = ifelse(nh1$PhysActive == "No", 0, 1)) 
+  mutate(PhysAc = ifelse(nh1$PhysActive == "No", 0, 1)) #Recode Activity into binary where No=0, Yes=1
 nh1 <- nh1 %>%
-  mutate(Diabete = ifelse(nh1$Diabetes == "No", 0, 1))
+  mutate(Diabete = ifelse(nh1$Diabetes == "No", 0, 1)) #Recode Diabetes into binary where No=0, Yes=1
 nh1 <- nh1 %>%
-  mutate(Depress = ifelse(nh1$Depressed == "None", 0, 1))
+  mutate(Depress = ifelse(nh1$Depressed == "None", 0, 1))  #Recode Depressed into binary where No report=0, Reported Depression=1
 nh1 <- nh1 %>%
-  mutate(RegularMarij2 = ifelse(nh1$RegularMarij == "No", 0, 1))
-nh1$TotChol = nh1$TotChol-mean(nh1$TotChol, na.rm = TRUE)
-nh1$Incomplete = complete.cases(nh1)
-nh1$Race1 = as.factor(nh1$Race1)
-
-## Centering weight
-nh1$Weight = (nh1$Weight-mean(nh1$Weight, na.rm = TRUE))/sd(nh1$Weight, na.rm = TRUE)
-nh1$Height = (nh1$Height-mean(nh1$Height, na.rm = TRUE))/sd(nh1$Height, na.rm = TRUE)
-
-
+  mutate(RegularMarij2 = ifelse(nh1$RegularMarij == "No", 0, 1)) #Recode Regular Marij into binary where No=0, Yes=1
+nh1$Incomplete = complete.cases(nh1) 
+nh1$Race1 = as.factor(nh1$Race1) #Race as factor
+#Creates Sex Specific Data Sets
 drops = c("Sex")
 nhF= nh1[ which(nh1$Sex == 1), ]
 nhM = nh1[ which(nh1$Sex == 0), ]
@@ -78,7 +68,7 @@ nh1 %>%
   bold_p(t = 0.05) %>%
   bold_labels
 ```
-
+## Female only Complete/Incomplete Data Set
 ```{r}
 ## Shiny app
 nhF %>%
@@ -103,7 +93,7 @@ nhF %>%
   bold_labels
 ```
 
-
+##Exploratory Stats: Male only Complete/Incomplete Data Set
 ```{r}
 nhM %>%
  tbl_summary(by = Incomplete,
@@ -126,12 +116,15 @@ nhM %>%
   bold_p(t = 0.05) %>%
   bold_labels
 ```
+Our first limitation is that complete/incomplete data are significantly different. Even if we adjusted for gender, there is still significant difference between the two data set. Using the complete model can be biased
+```{r}
+nh2 = drop_na(nh1) #complete data set
+```
 
-
-
+## Exploratory Stats: Testosterone/Categorical Variables Tables (assess)
 ```{r}
 SummaryTestTable <- function(x){ 
-nh3 = nh2[,c(all_of(x),"Testosterone")]
+nh3 = nh2[,c(all_of(x),"Testosterone", "Age", "TotChol", "Weight", "Height")]
   nh3 %>%
    tbl_summary(by = all_of(x),
                 missing = "no",
@@ -139,51 +132,39 @@ nh3 = nh2[,c(all_of(x),"Testosterone")]
                                all_categorical() ~ "{n} ({p}%)"),
               ) %>%
   add_n %>%
-  add_p(test = list(Testosterone ~ "t.test"),
+  add_p(test = list(Testosterone ~ "t.test",
+                    Age ~ "t.test",
+                    TotChol ~ "t.test",
+                    Weight ~ "t.test",
+                    Height ~ "t.test"),
         test.args = all_tests("t.test") ~ list(var.equal = TRUE),## Important argument! 
         pvalue_fun = function(x) style_pvalue(x, digits = 2)) %>%
   bold_p(t = 0.05) %>%
   bold_labels}
-
 for (i in c("Gender","PhysAc","Depress","Diabetes",  "HypT", "RegularMarij")) {
   print(SummaryTestTable(i))
 }
 
-
-
+nh3 = nh2[,c("Race1","Testosterone", "Age", "TotChol", "Weight", "Height")]
+  nh3 %>%
+   tbl_summary(by = Race1,
+                missing = "no",
+              statistic = list(all_continuous() ~ "{mean} ({sd})",
+                               all_categorical() ~ "{n} ({p}%)"),
+              ) %>%
+  add_n %>%
+ add_p(test = list(Testosterone ~ "aov",
+                    Age ~ "aov",
+                    TotChol ~ "aov",
+                    Weight ~ "aov",
+                    Height ~ "aov"),
+        test.args = all_tests("aov") ~ list(var.equal = TRUE),## Important argument! 
+        pvalue_fun = function(x) style_pvalue(x, digits = 2)) %>%
+  bold_p(t = 0.05) %>%
+  bold_labels
 ```
+## Exploratory Stats: Continous Variables
 ```{r}
-m1t =  lm(log(Testosterone)~
-              RegularMarij2, 
-         data = nh2)
-
-m2t <- lm(log(Testosterone)~
-              RegularMarij2 + Race1, 
-         data = nh2)
-anova(m1t,m2t)
-```
-
-
-
-
-
-
-Our first limitation is that complete/incomplete data are significantly different. Even if we adjusted for gender, there is still significant difference between the two data set. Using the complete model can be biased
-
-```{r}
-m_unrefined <- lm(Testosterone~RegularMarij2, data=nh2)
-summary(m_unrefined)
-checka(m_unrefined)
-```
-
-
-```{r}
-table1(~Testosterone | RegularMarij, data=nh2)
-table1(~Testosterone | Gender, data=nh2)
-table1(~Testosterone | Race1, data=nh2)
-table1(~Testosterone | Diabetes, data=nh2)
-table1(~Testosterone | PhysActive, data=nh2)
-table1(~Testosterone | HypT, data=nh2)
 #Compare Y to continous X
 scatmatrixData = nh2[,c("Testosterone", "TotChol", "Age", "Height", "Weight")]
 panel.hist <- function(x, ...)
@@ -196,143 +177,130 @@ panel.hist <- function(x, ...)
     rect(breaks[-nB], 0, breaks[-1], y, col = "cyan", ...)
 }
 pairs(scatmatrixData, pch = 19, diag.panel=panel.hist)
-```
-
-```{r}
-m1 =  lm(log(Testosterone)~
-             Agec + Sex + Race1 + PhysAc + Depress + Weight + 
-             Diabete + HypT + TotChol + RegularMarij2 + Height, 
-         data = nh2)
-summary(m1)
-```
-
-```{r}
-pairs(scatmatrixData, pch = 19, diag.panel=panel.hist)
 cormat = cor(scatmatrixData)
 pres <- cor.mtest(scatmatrixData, conf.level = .95)
 corrplot.mixed(cormat, lower.col = "black", number.cex = 1,p.mat = pres$p, sig.level = .05)
 ```
-
+## Now center continous variables (Needed)
 ```{r}
-m_ageC <- lm(log(Testosterone)~
-                 AgeQ2 + AgeQ3 + AgeQ4 + 
-                 Sex + Race1 + PhysAc + Depress + Weight + Height +
-                 Diabete + HypT + TotChol + RegularMarij2, 
-             data = nh2)
-summary(m_ageC)
+nh2$Weight = (nh2$Weight-mean(nh2$Weight, na.rm = TRUE))/sd(nh2$Weight, na.rm = TRUE)
+nh2$Height = (nh2$Height-mean(nh2$Height, na.rm = TRUE))/sd(nh2$Height, na.rm = TRUE)
+nh2$Agec = (nh2$Age-mean(nh2$Age, na.rm = TRUE))/sd(nh2$Age, na.rm = TRUE)
+nh2$TotChol = (nh2$TotChol-mean(nh2$TotChol, na.rm = TRUE))/sd(nh2$TotChol, na.rm = TRUE)
 ```
+## Function to check assumptions
 ```{r}
 checka <- function (model) {
   car::avPlots(model)
   plot(model$fitted.values, model$residuals)
   hist(model$residuals)
-  qqnorm(model$residuals)
+  car::qqPlot(model$residuals)
   shapiro.test(model$residuals)
 }
-checka(m_ageC)
-## confirm outliers
 ``` 
-
+## Unrefined Model (what to say about this?)
 ```{r}
-## Check age linearity
-plot(1:3, m_ageC$coefficients[2:4])
+m_unrefined <- lm(Testosterone~RegularMarij2, data=nh2)
+summary(m_unrefined)
+checka(m_unrefined)
 ```
-
-double check the quadratic
-
+## Adjusted Model with no log (to provide justifaction for log(T))
 ```{r}
-Agec <- (nh2$Age-mean(nh2$Age))/sd(nh2$Age)
-m_age_it_2 <- lm(log(Testosterone) ~ 
-                    I(Agec) + I(Agec^2)+
-                    Sex + Race1 + PhysAc + Depress + Diabete + 
-                    HypT+ TotChol + RegularMarij2 +  Weight + Height, 
-                data = nh2)
-summary(m_age_it_2)
-```
-
-```{r}
-## Complete case model nh2
-nh2 <- nh1 %>% drop_na() #drop anything with NA
-## Full model with age as continuous variable
-
-m1 =  lm(log(Testosterone)~
-             Agec + Sex + Race1 + PhysAc + Depress + Weight + 
-             Diabete + HypT + TotChol + RegularMarij2 + Height, 
+m_adjusted_nolog =  lm(Testosterone~RegularMarij2 + Agec + Sex + Race1 + PhysAc + Depress + Weight + 
+             Diabete + HypT + TotChol + Height, 
          data = nh2)
+summary(m_adjusted_nolog)
+checka(m_adjusted_nolog)
+```
+## Adjusted Model log(Y)
+```{r}
+m1 <- lm(log(Testosterone)~RegularMarij2 + Agec + Sex + Race1 + PhysAc + Depress + Weight +  Diabete + HypT + TotChol + Height, data = nh2)
 summary(m1)
+checka(m1)
 ```
 
 
+## Adjusted Model with considering first literature, then explatory stat, sand log (Y) AND interaction adjusted model only adding interactions for B that are signifcant in non-interaction and exploratory stats/lit supports
+```{r}
+m_alt =  lm(log(Testosterone)~RegularMarij2 + Agec + Sex  + Depress + Weight + HypT + TotChol + Height, 
+         data = nh2)
+summary(m_alt)
+checka(m_alt)
+m_alt_int =  lm(log(Testosterone)~RegularMarij2 + Agec + Sex  + Depress + Weight + HypT + TotChol + Height + Weight*Height + Agec*(Weight + Height) + Sex*(Weight + Height), 
+         data = nh2)
+summary(m_alt_int)
+checka(m_alt_int)
+```
+
+```{r}
+
+## Double check age linearity
+
+```
+
+
+## The following code tests to see if Beta for race are equal. Find that all 5 are not and B for Race1"Black" is diff. We do not need to do this, so we can remove it. reduces our R^2 but simplies intreptation. 
 ```{r}
 # Model with Race as well coding, want to see if can combine race categories
-m_wo_its =  lm(log(Testosterone)~
-             -1 + Agec + Sex + Race1 + PhysAc + Depress + Weight + 
-             Diabete + HypT + TotChol + RegularMarij2 + Height, 
+m_wo_its =  lm(log(Testosterone)~ -1 + RegularMarij2 + Agec + Sex + Race1 + PhysAc + Depress + Weight + 
+             Diabete + HypT + TotChol + Height, 
          data = nh2)
 summary(m_wo_its)
 ```
-
+## The 1st hypothesis is wrong sex - black means nothing
 ```{r}
 #Test to see (4) racial categories can be combined into one
 Contrast.T = matrix(c(0,0,1,-1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,-1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,-1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,-1,0,0,0,0,0,0,0,0),byrow = T, nrow = 4) 
-
 car::linearHypothesis(model=m_wo_its,hypothesis.matrix=Contrast.T, rsh=c(0,0,0,0))
-```
-```{r}
+#Test to see if (3) can be combined into one
 Contrast.T = matrix(c(0,0,0,1,-1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,-1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,-1,0,0,0,0,0,0,0,0),byrow = T, nrow = 3)
-
 car::linearHypothesis(model=m_wo_its,hypothesis.matrix=Contrast.T, rsh=c(0,0,0))
 ```
-
 
 ```{r}
 #Recode race into black and non-black
 nh2 <- nh2 %>%
   mutate(Race2 = ifelse(nh2$Race1 == "Black", 0, 1))
 #model with intercept and race as binary
-m1.2 =  lm(log(Testosterone)~
-             Agec + Sex + Race2 + PhysAc + Depress + Weight + 
-             Diabete + HypT + TotChol + RegularMarij2 + Height, 
-         data = nh2)
+m1.2 =  lm(log(Testosterone)~RegularMarij2 + Agec + Sex + Race2 + PhysAc + Depress + Weight + 
+             Diabete + HypT + TotChol + Height, data = nh2)
 summary(m1.2)
-car::avPlots(m1.2)
-plot(m1.2$fitted.values, m1.2$residuals)
-```
-
-According to the plot we found out that age, weight, height, and BPSysAve are linear. We can use age as a non-categorical value because it gives us higher r^2
-```{r}
 checka(m1.2)
 ```
 
-
-
+## If we decide to use above code, this is the final model without interaction. 
 ```{r}
 ## model without interaction
-m_age_woit <- lm(log(Testosterone) ~ 
-                    Agec + 
-                    Sex + Race2 + PhysAc + Depress + Diabete + 
-                    HypT+ TotChol + RegularMarij2 +  Weight + Height, 
-                data = nh2)
+m_age_woit <- lm(log(Testosterone)~RegularMarij2 + Agec + Sex + Race2 + PhysAc + Depress + Weight + 
+             Diabete + HypT + TotChol + Height, data = nh2)
 summary(m_age_woit)
+checka(m_age_woit)
 ```
 
+## This would be our full model with interaction. 
 ```{r}
-## full model with interaction : Final model based on journal reading
-m_age_it <- lm(log(Testosterone) ~ 
-                    Age + 
-                    Sex + Race2 + PhysAc + Diabete + TotChol +
-                    HypT + RegularMarij2 +  Weight + Height +
-                    HypT*Weight + Weight*Height + Age*(Weight + Height) +
-                    Diabete*(Weight + PhysAc + TotChol) + RegularMarij2*PhysAc
-               ,
-                data = nh2)
+## full model with interaction : Final model based on journal reading and exploratory analysis 
+m_age_it <- lm(log(Testosterone)~RegularMarij2 + Agec + Sex + Race2 + PhysAc + Depress + Weight + 
+             Diabete + HypT + TotChol + Height + HypT*Weight + Weight*Height + Agec*(Weight + Height) +
+                    Diabete*(Weight + PhysAc + TotChol) + RegularMarij2*PhysAc,data = nh2)
 summary(m_age_it)
+checka(m_age_it)
 ```
+
+
+```{r}
+## Final model:
+m_age_it <- lm(log(Testosterone)~RegularMarij2 + Agec + Sex + Race2 + PhysAc + Depress + Weight + 
+             Diabete + HypT + TotChol + Height + HypT*Weight + Weight*Height + Agec*(Weight + Height) +
+                    Diabete*(Weight + PhysAc) + RegularMarij2*PhysAc,data = nh2)
+summary(m_age_it)
+checka(m_age_it)
+```
+
 
 ```{r}
 ## Check co-linearity
 cor(nh2[c("Age","Diabete", "TotChol", "HypT", "PhysAc","Depress", "Weight", "Height")])
-
 ## Add VIF later
 ```
 
@@ -352,13 +320,3 @@ m_age_it <- lm(log(Testosterone) ~
                 data = nh2)
 summary(m_age_it)
 ```
-
-
-## linearity check
-```{r}
-checka(m_age_it)
-```
-
-
-
-
