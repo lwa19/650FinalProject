@@ -124,7 +124,7 @@ nh2 = drop_na(nh1) #complete data set
 ```
 
 ## Exploratory Stats: Testosterone (and other continous)  by Categorical Variables Tables (assess) (NOT INCLUDE IN PAPER OR PRESENTATION DIRECTLY )
-```{r}
+```{r, echo=FALSE, eval=FALSE}
 SummaryTestTable <- function(x){ 
 nh3 = nh2[,c(all_of(x),"Testosterone", "Age", "TotChol", "Weight", "Height")]
   nh3 %>%
@@ -291,3 +291,19 @@ car::linearHypothesis(model=m_wo_its,hypothesis.matrix=Contrast.T, rsh=c(0,0,0,0
 Contrast.T = matrix(c(0,0,0,0,1,-1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,-1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,-1,0,0,0,0,0,0),byrow = T, nrow = 3)
 car::linearHypothesis(model=m_wo_its,hypothesis.matrix=Contrast.T, rsh=c(0,0,0))
 ```
+
+## Additional Analysis (Leah)
+
+```{r}
+summary(nh2$Testosterone)
+hist(nh2$Testosterone)
+```
+
+```{r}
+m_int <- lm(lm(log(Testosterone)~ RegMarij + Sex + Agec + Race1  
+               + Depress + Weightc + Heightc + Diabete + HypT + 
+                 TotCholc + Sex*RegMarij,  data = nh2))
+summary(m_int)
+```
+
+
