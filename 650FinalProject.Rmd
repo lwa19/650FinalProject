@@ -16,6 +16,8 @@ library("corrplot")
 library("gtsummary")
 library("dplyr")
 library("olsrr")
+library(kableExtra)
+library(jtools)
 ```
 
 ## Data Cleaning and Variates Selection
@@ -230,12 +232,12 @@ nhMale = nh2[ which(nh2$Sex == 0), ]
 m_F = lm(log(Testosterone)~ RegMarij + Agec + Race1  + Depress + Weightc + Heightc +
              Diabete + HypT + TotCholc,
          data = nhFemale)
-summary(m_F)
+summ(m_F)
 plot(m_F$fitted.values, m_F$residuals)
 m_M = lm(log(Testosterone)~ RegMarij + Agec + Race1  + Depress + Weightc + Heightc +
              Diabete + HypT + TotCholc,
          data = nhMale)
-summary(m_M)
+summ(m_M)
 plot(m_F$fitted.values, m_F$residuals)
 ```
 
@@ -256,6 +258,7 @@ m_int <- lm(lm(log(Testosterone)~ RegMarij + Sex + Agec + Race1  + Depress + Wei
              Diabete + HypT + TotCholc + Sex*(RegMarij + Agec + Race1  + Depress + Weightc + Heightc +
              Diabete + HypT + TotCholc),  data = nh2))
 summary(m_int)
+
 ```
 ## Remove all insig interactions, and checks assumptions (not linearity, as this is checked only for main effects (see above))
 ```{r}
@@ -265,8 +268,10 @@ m_final <- lm(lm(log(Testosterone)~ RegMarij + Sex + Agec + Race1  + Depress + W
 summary(m_final)
 plot(m_final$fitted.values, m_final$residuals)
 hist(m_final$residuals)
-car::qqPlot(m_final$residuals)
+car::qqPlot(m_final$residuals, main = "QQ plot", xlab = "Normal Quantiles", 
+            ylab = "Residuals")
 shapiro.test(m_final$residuals)
+summ(m_final)
 ```
 ```{r}
 olsrr::ols_plot_dffits(m_final)
@@ -297,6 +302,8 @@ car::linearHypothesis(model=m_wo_its,hypothesis.matrix=Contrast.T, rsh=c(0,0,0))
 ```{r}
 summary(nh2$Testosterone)
 hist(nh2$Testosterone)
+hist(log(nh2$Testosterone), main = "Histogram of log(Testosterone)", 
+     xlab = "log(Testosterone) (log(ng/dL))", col = "grey")
 ```
 
 ```{r}
@@ -307,3 +314,26 @@ summary(m_int)
 ```
 
 
+```{r}
+md = lm(formula = log(Testosterone) ~ RegMarij + Sex + Agec + Race1 + 
+    Depress + Weightc + Heightc + Diabete + HypT + TotCholc, 
+    data = nh2)
+md$col = ifelse(nh2$Sex == 1, 'red', 'blue')
+plot(md$fitted.values, rstudent(md), col = md$col, 
+     main = "Equal Variance Plot for main effect model (with log transform)", 
+     xlab = "Fitted Values", ylab = "Studentized Residuals")
+legend("topright", legend = c("female", "male"), col = c('red','blue'), 
+       pch = 1)
+```
+
+
+```{r}
+md = lm(formula = Testosterone ~ RegMarij + Sex + Agec + Race1 + 
+    Depress + Weightc + Heightc + Diabete + HypT + TotCholc, 
+    data = nh2)
+md$col = ifelse(nh2$Sex == 1, 'red', 'blue')
+plot(md$fitted.values, rstudent(md), col = md$col, 
+     main = "Equal Variance Plot for main effect model (w/o log transform)")
+legend("topright", legend = c("female", "male"), col = c('red','blue'), 
+       pch = 1)
+```
